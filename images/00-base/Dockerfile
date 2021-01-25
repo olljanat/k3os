@@ -66,4 +66,6 @@ RUN apk --no-cache add \
  && mv -vf /etc/conf.d/udev-settle      /etc/conf.d/udev-settle.orig \
 # replicate the default "no idea, friend" behavior of virt-what
  && touch /usr/sbin/virt-what \
- && chmod +x /usr/sbin/virt-what
+ && chmod +x /usr/sbin/virt-what \
+# use cgroups version 2 on /sys/fs/cgroup
+ && sed -i 's/^#rc_cgroup_mode="hybrid"/rc_cgroup_mode="unified"/' /etc/rc.conf
