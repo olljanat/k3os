@@ -3,7 +3,6 @@ package rc
 // forked from https://github.com/linuxkit/linuxkit
 
 import (
-	"encoding/csv"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -85,34 +84,6 @@ func mkdir(path string, perm os.FileMode) {
 	if err != nil {
 		log.Printf("error making directory %s: %v", path, err)
 	}
-}
-
-// list of all enabled cgroups
-func cgroupList() []string {
-	list := []string{}
-	f, err := os.Open("/proc/cgroups")
-	if err != nil {
-		log.Printf("cannot open /proc/cgroups: %v", err)
-		return list
-	}
-	defer f.Close()
-	reader := csv.NewReader(f)
-	// tab delimited
-	reader.Comma = '\t'
-	// four fields
-	reader.FieldsPerRecord = 4
-	cgroups, err := reader.ReadAll()
-	if err != nil {
-		log.Printf("cannot parse /proc/cgroups: %v", err)
-		return list
-	}
-	for _, cg := range cgroups {
-		// see if enabled
-		if cg[3] == "1" {
-			list = append(list, cg[0])
-		}
-	}
-	return list
 }
 
 // write a file, eg sysfs
@@ -231,21 +202,8 @@ func doMounts() {
 	// misc /proc mounted fs
 	mountSilent("binfmt_misc", "/proc/sys/fs/binfmt_misc", "binfmt_misc", noexec|nosuid|nodev, "")
 
-	// mount cgroup root tmpfs
-	mount("cgroup_root", "/sys/fs/cgroup", "tmpfs", nodev|noexec|nosuid, "mode=755,size=10m")
-	// mount cgroups filesystems for all enabled cgroups
-	for _, cg := range cgroupList() {
-		path := filepath.Join("/sys/fs/cgroup", cg)
-		mkdir(path, 0555)
-		mount(cg, path, "cgroup", noexec|nosuid|nodev, cg)
-	}
-
-	// use hierarchy for memory
-	write("/sys/fs/cgroup/memory/memory.use_hierarchy", "1")
-
-	// many things assume systemd
-	mkdir("/sys/fs/cgroup/systemd", 0555)
-	mount("cgroup", "/sys/fs/cgroup/systemd", "cgroup", 0, "none,name=systemd")
+	// mount cgroup2 root
+	mount("cgroup_root", "/sys/fs/cgroup", "cgroup2", nodev|noexec|nosuid|relatime, "")
 
 	// make / rshared
 	mount("", "/", "", rec|shared, "")
